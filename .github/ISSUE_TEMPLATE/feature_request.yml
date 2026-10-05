@@ -1,0 +1,20 @@
+name: Feature request
+description: 提议新的工业质量能力或工程改进。
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: 业务问题
+      description: 描述需要解决的制造或质量痛点，而不只是技术方案。
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 风险与验收标准
+      description: 包括数据、安全、兼容性和可量化验收指标。

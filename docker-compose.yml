@@ -1,0 +1,27 @@
+services:
+  electrotrace:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ELECTROTRACE_OCR_PROVIDER: demo
+      ELECTROTRACE_SEED_DEMO: "true"
+      ELECTROTRACE_DB: /app/data/electrotrace.db
+      ELECTROTRACE_UPLOAD_DIR: /app/data/uploads
+      ELECTROTRACE_AUTH_REQUIRED: "true"
+      ELECTROTRACE_DEMO_ADMIN_PASSWORD: ${ELECTROTRACE_DEMO_ADMIN_PASSWORD:-ChangeMe!2026}
+      ELECTROTRACE_RATE_LIMIT: "120"
+    volumes:
+      - electrotrace-data:/app/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  electrotrace-data:

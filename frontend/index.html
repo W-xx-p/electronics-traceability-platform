@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ElectroTrace · 电子产品质量追溯</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">ELECTRONICS QUALITY OPERATIONS</p>
+      <h1>ElectroTrace</h1>
+      <p>电子产品序列号识别与质量追溯平台</p>
+    </div>
+    <div class="session-area">
+      <div class="system-state"><span></span>系统就绪 · Demo OCR</div>
+      <div id="user-chip" class="user-chip" hidden><strong id="user-name"></strong><small id="user-role"></small><button id="logout-button">退出</button></div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="主导航">
+    <button class="tab active" data-page="scan">质检工位</button>
+    <button class="tab" data-page="reviews">人工复核</button>
+    <button class="tab" data-page="trace">产品追溯</button>
+    <button class="tab" data-page="records">质检记录</button>
+    <button class="tab" data-page="dashboard">质量看板</button>
+    <button class="tab" data-page="operations">系统运维</button>
+  </nav>
+
+  <main>
+    <section id="scan" class="page active">
+      <div class="page-heading">
+        <div><p class="eyebrow">INSPECTION STATION</p><h2>质检工位</h2></div>
+        <p>选择生产订单并上传项目生成的演示标签。</p>
+      </div>
+      <div class="grid two">
+        <form id="scan-form" class="panel">
+          <label>生产订单<select id="order-select" required></select></label>
+          <label>质检工位<select id="workstation-select" required></select></label>
+          <label class="upload-zone">
+            <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp" required>
+            <strong>选择标签图片</strong>
+            <span id="file-name">支持 PNG / JPEG / WebP，最大 10 MiB</span>
+          </label>
+          <button class="primary" type="submit">开始质检</button>
+          <p class="hint">样例图片位于 <code>sample-data/images</code>。</p>
+        </form>
+        <article id="inspection-result" class="panel result empty">
+          <div class="empty-state"><div class="scanner-mark">⌁</div><h3>等待扫描</h3><p>质检结果、字段和判定原因将显示在这里。</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="records" class="page">
+      <div class="page-heading"><div><p class="eyebrow">INSPECTION RECORDS</p><h2>质检记录</h2></div><button id="refresh-records" class="secondary">刷新记录</button></div>
+      <form id="record-filter" class="filter-bar">
+        <input id="record-serial" placeholder="序列号包含…">
+        <select id="record-status"><option value="">全部状态</option><option value="pass">PASS</option><option value="review">REVIEW</option><option value="reject">REJECT</option></select>
+        <button class="primary" type="submit">筛选</button>
+      </form>
+      <div class="panel table-wrap"><table><thead><tr><th>时间</th><th>序列号</th><th>订单</th><th>工位</th><th>状态</th><th>置信度</th><th>耗时</th><th>证据</th></tr></thead><tbody id="record-rows"></tbody></table></div>
+    </section>
+
+    <section id="reviews" class="page">
+      <div class="page-heading">
+        <div><p class="eyebrow">HUMAN IN THE LOOP</p><h2>人工复核</h2></div>
+        <button id="refresh-reviews" class="secondary">刷新队列</button>
+      </div>
+      <div id="review-list" class="stack"></div>
+    </section>
+
+    <section id="trace" class="page">
+      <div class="page-heading"><div><p class="eyebrow">TRACEABILITY</p><h2>产品追溯</h2></div></div>
+      <form id="trace-form" class="inline-form">
+        <input id="trace-serial" placeholder="输入序列号，例如 A100-20260001" required>
+        <button class="primary" type="submit">查询</button>
+      </form>
+      <div id="trace-result" class="stack"></div>
+    </section>
+
+    <section id="dashboard" class="page">
+      <div class="page-heading">
+        <div><p class="eyebrow">QUALITY ANALYTICS</p><h2>质量看板</h2></div>
+        <div class="toolbar"><button id="export-data" class="secondary">导出 CSV</button><button id="refresh-dashboard" class="secondary">刷新数据</button></div>
+      </div>
+      <div id="metric-cards" class="metrics"></div>
+      <div class="panel"><h3>主要异常原因</h3><div id="reason-list" class="reason-list"></div></div>
+      <div class="panel trend-panel"><h3>最近 14 天检测趋势</h3><div id="daily-trend" class="daily-trend"></div></div>
+    </section>
+
+    <section id="operations" class="page">
+      <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h2>系统运维</h2></div><button id="refresh-operations" class="secondary">刷新</button></div>
+      <div class="grid two">
+        <div class="panel"><h3>用户与角色</h3><div class="table-wrap"><table><thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>状态</th></tr></thead><tbody id="user-rows"></tbody></table></div></div>
+        <div class="panel"><h3>工位状态</h3><div class="table-wrap"><table><thead><tr><th>工位</th><th>位置</th><th>最后心跳</th></tr></thead><tbody id="workstation-rows"></tbody></table></div></div>
+      </div>
+      <div class="panel audit-panel"><h3>最新审计事件 <span id="audit-integrity" class="integrity"></span></h3><div class="table-wrap"><table><thead><tr><th>时间</th><th>对象</th><th>操作</th><th>详情</th></tr></thead><tbody id="audit-rows"></tbody></table></div></div>
+    </section>
+  </main>
+
+  <div id="login-screen" class="login-screen" hidden>
+    <form id="login-form" class="login-card">
+      <p class="eyebrow">SECURE ACCESS</p>
+      <h2>登录 ElectroTrace</h2>
+      <p>使用企业账号进入质量追溯平台。</p>
+      <label>用户名<input id="login-username" autocomplete="username" value="operator" required></label>
+      <label>密码<input id="login-password" type="password" autocomplete="current-password" value="Operator!2026" required></label>
+      <button class="primary" type="submit">登录</button>
+      <p class="demo-accounts">演示账号：operator / Operator!2026<br>质量复核：quality / Quality!2026</p>
+      <p id="login-error" class="form-error" role="alert"></p>
+    </form>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

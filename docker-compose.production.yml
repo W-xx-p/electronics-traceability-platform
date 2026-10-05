@@ -1,0 +1,25 @@
+services:
+  electrotrace:
+    env_file:
+      - path: .env.production
+        required: false
+    environment:
+      ELECTROTRACE_ENV: production
+      ELECTROTRACE_SEED_DEMO: "false"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid
+    volumes:
+      - electrotrace-data:/app/data
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
