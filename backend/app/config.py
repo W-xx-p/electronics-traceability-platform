@@ -24,6 +24,7 @@ class Settings:
     max_login_attempts: int = 5
     login_lock_minutes: int = 15
     audit_hmac_key: str = ""
+    metrics_token: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -52,4 +53,5 @@ class Settings:
             max_login_attempts=int(os.getenv("ELECTROTRACE_MAX_LOGIN_ATTEMPTS", "5")),
             login_lock_minutes=int(os.getenv("ELECTROTRACE_LOGIN_LOCK_MINUTES", "15")),
             audit_hmac_key=os.getenv("ELECTROTRACE_AUDIT_HMAC_KEY", ""),
+            metrics_token=os.getenv("ELECTROTRACE_METRICS_TOKEN", ""),
         )

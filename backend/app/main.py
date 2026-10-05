@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hmac
 import io
 import sqlite3
 from contextlib import asynccontextmanager
@@ -33,6 +34,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or Settings.from_env()
     if app_settings.environment == "production" and app_settings.seed_demo:
         raise RuntimeError("生产环境必须设置 ELECTROTRACE_SEED_DEMO=false")
+    if app_settings.environment == "production" and len(app_settings.audit_hmac_key) < 32:
+        raise RuntimeError("生产环境必须设置至少 32 位的 ELECTROTRACE_AUDIT_HMAC_KEY")
+    if app_settings.environment == "production" and len(app_settings.metrics_token) < 24:
+        raise RuntimeError("生产环境必须设置至少 24 位的 ELECTROTRACE_METRICS_TOKEN")
     metrics = Metrics()
 
     @asynccontextmanager
@@ -72,6 +77,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="ElectroTrace API", version="1.0.0",
         description="电子产品序列号识别、质量判定与追溯平台", lifespan=lifespan,
+        docs_url=None if app_settings.environment == "production" else "/docs",
+        redoc_url=None if app_settings.environment == "production" else "/redoc",
+        openapi_url=None if app_settings.environment == "production" else "/openapi.json",
     )
     app.add_middleware(
         EnterpriseMiddleware,
@@ -133,7 +141,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ready", "ocr_provider": app_settings.ocr_provider}
 
     @app.get("/metrics", response_class=PlainTextResponse, tags=["operations"])
-    def prometheus_metrics() -> str:
+    def prometheus_metrics(
+        metrics_token: str = Header(default="", alias="X-Metrics-Token"),
+    ) -> str:
+        if app_settings.environment == "production" and not hmac.compare_digest(
+            metrics_token, app_settings.metrics_token
+        ):
+            raise HTTPException(status_code=401, detail="监控凭据无效")
         return metrics.render()
 
     @app.post("/api/v1/auth/login", tags=["authentication"])

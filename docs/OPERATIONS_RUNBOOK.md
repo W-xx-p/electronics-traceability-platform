@@ -8,6 +8,7 @@
 - 挂载持久卷到 `/app/data`，确认数据库和上传目录权限只授予应用用户。
 - Prometheus 抓取 `/metrics`，探针分别使用 `/health/live` 和 `/health/ready`。
 - 设置稳定、高熵的 `ELECTROTRACE_AUDIT_HMAC_KEY` 并交由密钥管理系统保存。该密钥不可随意轮换，否则历史审计签名将无法通过校验。
+- 设置独立的 `ELECTROTRACE_METRICS_TOKEN`，Prometheus 请求 `/metrics` 时通过 `X-Metrics-Token` 传递。生产模式自动关闭 Swagger、ReDoc 和 OpenAPI JSON。
 
 启动生产覆盖配置：
 
@@ -15,6 +16,8 @@
 cp .env.production.example .env.production
 docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
 ```
+
+生产镜像使用 `requirements.lock` 中经过实际 Python 3.12 Linux 镜像验证的精确版本。更新依赖时必须重新构建镜像、执行完整测试和 `pip-audit -r requirements.lock`，不能只修改锁文件。
 
 ## 备份与恢复演练
 

@@ -264,6 +264,9 @@ class Database:
         details_json = json.dumps(enriched, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         created_at = utc_now()
         with self.connect() as conn:
+            # Serialize the read-head/append sequence so concurrent requests
+            # cannot create two audit records with the same previous hash.
+            conn.execute("BEGIN IMMEDIATE")
             previous_row = conn.execute("SELECT record_hash FROM audit_logs ORDER BY id DESC LIMIT 1").fetchone()
             previous = previous_row["record_hash"] if previous_row and previous_row["record_hash"] else "GENESIS"
             cursor = conn.execute(

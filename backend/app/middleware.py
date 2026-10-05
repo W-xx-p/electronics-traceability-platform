@@ -67,6 +67,7 @@ class EnterpriseMiddleware(BaseHTTPMiddleware):
         self.metrics = metrics
         self._requests: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._last_cleanup = 0.0
         self.logger = logging.getLogger("electrotrace.access")
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -85,6 +86,15 @@ class EnterpriseMiddleware(BaseHTTPMiddleware):
                 client = request.client.host if request.client else "unknown"
                 now = time.monotonic()
                 with self._lock:
+                    if now - self._last_cleanup >= 60:
+                        cutoff = now - 60
+                        stale_clients = [
+                            key for key, queue in self._requests.items()
+                            if not queue or queue[-1] < cutoff
+                        ]
+                        for key in stale_clients:
+                            self._requests.pop(key, None)
+                        self._last_cleanup = now
                     bucket = self._requests[client]
                     while bucket and bucket[0] < now - 60:
                         bucket.popleft()

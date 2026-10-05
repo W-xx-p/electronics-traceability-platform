@@ -292,6 +292,27 @@ def test_production_configuration_rejects_demo_seed(tmp_path):
         assert "SEED_DEMO=false" in str(exc)
 
 
+def test_production_hides_docs_and_protects_metrics(tmp_path):
+    token = "metrics-token-with-at-least-24-characters"
+    settings = Settings(
+        base_dir=tmp_path,
+        database_path=tmp_path / "prod.db",
+        upload_dir=tmp_path / "uploads",
+        static_dir=tmp_path / "no-static",
+        environment="production",
+        seed_demo=False,
+        audit_hmac_key="a" * 32,
+        metrics_token=token,
+        bootstrap_admin_username="bootstrap-admin",
+        bootstrap_admin_password="Bootstrap!2026#",
+    )
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/docs").status_code == 404
+        assert client.get("/openapi.json").status_code == 404
+        assert client.get("/metrics").status_code == 401
+        assert client.get("/metrics", headers={"X-Metrics-Token": token}).status_code == 200
+
+
 def test_evidence_order_state_device_key_and_audit_integrity(tmp_path):
     with client_for(tmp_path, auth_required=True) as client:
         login = client.post(

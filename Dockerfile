@@ -8,12 +8,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml requirements.lock README.md ./
 COPY backend ./backend
 COPY frontend ./frontend
 COPY scripts ./scripts
 
-RUN pip install --no-cache-dir . \
+RUN pip install --no-cache-dir -r requirements.lock \
+    && pip install --no-cache-dir --no-deps . \
     && python scripts/generate_demo_labels.py \
     && groupadd --system electrotrace \
     && useradd --system --gid electrotrace --home-dir /app --shell /usr/sbin/nologin electrotrace \

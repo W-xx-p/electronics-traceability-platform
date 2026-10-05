@@ -12,6 +12,13 @@
 # 进入项目目录
 cd electronics-traceability-platform
 
+# 创建隔离环境并安装已验证依赖
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.lock
+python -m pip install --no-deps -e .
+
 # 仓库已包含五张合成演示标签；需要重新生成时执行
 python scripts/generate_demo_labels.py
 
@@ -49,7 +56,7 @@ python -m uvicorn backend.app.main:app --reload
 pytest
 ```
 
-当前回归套件包含 10 个端到端 API 测试，覆盖质量规则、幂等、重复序列号、人工复核、复核认领冲突、权限矩阵、登录锁定、恶意上传、工位密钥、证据鉴权、订单状态、规则版本、审计篡改检测、导出、指标和备份完整性。
+当前回归套件包含 11 个端到端 API 测试，覆盖质量规则、幂等、重复序列号、人工复核、复核认领冲突、权限矩阵、登录锁定、恶意上传、工位密钥、证据鉴权、订单状态、规则版本、审计篡改检测、导出、生产安全边界、指标和备份完整性。
 
 也可以使用 Docker Compose：
 
