@@ -9,6 +9,7 @@
 - Prometheus 抓取 `/metrics`，探针分别使用 `/health/live` 和 `/health/ready`。
 - 设置稳定、高熵的 `ELECTROTRACE_AUDIT_HMAC_KEY` 并交由密钥管理系统保存。该密钥不可随意轮换，否则历史审计签名将无法通过校验。
 - 设置独立的 `ELECTROTRACE_METRICS_TOKEN`，Prometheus 请求 `/metrics` 时通过 `X-Metrics-Token` 传递。生产模式自动关闭 Swagger、ReDoc 和 OpenAPI JSON。
+- `ELECTROTRACE_DEMO_INSPECTION_COUNT` 仅用于本地演示数据初始化。生产环境必须为 `0`，应用也会在生产模式主动拒绝非零配置。
 
 启动生产覆盖配置：
 

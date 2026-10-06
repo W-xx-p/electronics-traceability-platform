@@ -13,6 +13,7 @@ class Settings:
     static_dir: Path
     ocr_provider: str = "demo"
     seed_demo: bool = True
+    demo_inspection_count: int = 0
     auth_required: bool = True
     demo_admin_password: str = "ChangeMe!2026"
     session_hours: int = 8
@@ -38,6 +39,7 @@ class Settings:
             static_dir=Path(os.getenv("ELECTROTRACE_STATIC_DIR", project_dir / "frontend")),
             ocr_provider=os.getenv("ELECTROTRACE_OCR_PROVIDER", "demo").lower(),
             seed_demo=os.getenv("ELECTROTRACE_SEED_DEMO", "true").lower() == "true",
+            demo_inspection_count=max(0, int(os.getenv("ELECTROTRACE_DEMO_INSPECTION_COUNT", "0"))),
             auth_required=os.getenv("ELECTROTRACE_AUTH_REQUIRED", "true").lower() == "true",
             demo_admin_password=os.getenv("ELECTROTRACE_DEMO_ADMIN_PASSWORD", "ChangeMe!2026"),
             session_hours=int(os.getenv("ELECTROTRACE_SESSION_HOURS", "8")),

@@ -4,17 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ElectroTrace · 电子产品质量追溯</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=1.1.0">
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <p class="eyebrow">ELECTRONICS QUALITY OPERATIONS</p>
-      <h1>ElectroTrace</h1>
-      <p>电子产品序列号识别与质量追溯平台</p>
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true"><span>ET</span></div>
+      <div>
+        <p class="eyebrow">ELECTRONICS QUALITY OPERATIONS</p>
+        <h1>ElectroTrace</h1>
+        <p>电子产品序列号识别与质量追溯平台</p>
+      </div>
     </div>
     <div class="session-area">
-      <div class="system-state"><span></span>系统就绪 · Demo OCR</div>
+      <div class="environment-row"><span class="environment-badge">LOCAL ENV</span><div class="system-state"><span></span>系统就绪 · 合成数据 OCR</div></div>
       <div id="user-chip" class="user-chip" hidden><strong id="user-name"></strong><small id="user-role"></small><button id="logout-button">退出</button></div>
     </div>
   </header>
@@ -32,7 +35,7 @@
     <section id="scan" class="page active">
       <div class="page-heading">
         <div><p class="eyebrow">INSPECTION STATION</p><h2>质检工位</h2></div>
-        <p>选择生产订单并上传项目生成的演示标签。</p>
+        <p>选择生产订单并上传项目生成的合成验证标签。</p>
       </div>
       <div class="grid two">
         <form id="scan-form" class="panel">
@@ -53,7 +56,7 @@
     </section>
 
     <section id="records" class="page">
-      <div class="page-heading"><div><p class="eyebrow">INSPECTION RECORDS</p><h2>质检记录</h2></div><button id="refresh-records" class="secondary">刷新记录</button></div>
+      <div class="page-heading"><div><p class="eyebrow">INSPECTION RECORDS</p><h2>质检记录</h2><p id="record-count" class="section-note">正在读取检测档案…</p></div><button id="refresh-records" class="secondary">刷新记录</button></div>
       <form id="record-filter" class="filter-bar">
         <input id="record-serial" placeholder="序列号包含…">
         <select id="record-status"><option value="">全部状态</option><option value="pass">PASS</option><option value="review">REVIEW</option><option value="reject">REJECT</option></select>
@@ -81,12 +84,22 @@
 
     <section id="dashboard" class="page">
       <div class="page-heading">
-        <div><p class="eyebrow">QUALITY ANALYTICS</p><h2>质量看板</h2></div>
+        <div><p class="eyebrow">QUALITY ANALYTICS</p><h2>制造质量运营中心</h2><p class="section-note">覆盖近 14 天序列号识别、规则判定与工位运行质量</p></div>
         <div class="toolbar"><button id="export-data" class="secondary">导出 CSV</button><button id="refresh-dashboard" class="secondary">刷新数据</button></div>
       </div>
+      <div class="dashboard-status">
+        <div><span class="live-dot"></span><strong>生产质量数据在线</strong><small>数据源：全部生产订单与视觉工位</small></div>
+        <div class="status-meta"><span>统计周期<strong>14 天</strong></span><span>最后刷新<strong id="dashboard-updated">--:--:--</strong></span></div>
+      </div>
       <div id="metric-cards" class="metrics"></div>
-      <div class="panel"><h3>主要异常原因</h3><div id="reason-list" class="reason-list"></div></div>
-      <div class="panel trend-panel"><h3>最近 14 天检测趋势</h3><div id="daily-trend" class="daily-trend"></div></div>
+      <div class="dashboard-grid">
+        <div class="panel"><div class="panel-heading"><div><p class="panel-kicker">NON-CONFORMANCE</p><h3>主要异常原因</h3></div><span class="panel-tag">TOP 5</span></div><div id="reason-list" class="reason-list"></div></div>
+        <div class="panel"><div class="panel-heading"><div><p class="panel-kicker">WORKSTATION PERFORMANCE</p><h3>工位质量绩效</h3></div><span class="panel-tag">实时汇总</span></div><div class="table-wrap"><table class="compact-table"><thead><tr><th>工位</th><th>检测量</th><th>直通率</th><th>平均耗时</th></tr></thead><tbody id="workstation-performance"></tbody></table></div></div>
+      </div>
+      <div class="panel trend-panel">
+        <div class="panel-heading"><div><p class="panel-kicker">DAILY THROUGHPUT</p><h3>最近 14 天检测趋势</h3></div><div class="chart-legend"><span class="pass-key">PASS</span><span class="review-key">REVIEW</span><span class="reject-key">REJECT</span></div></div>
+        <div id="daily-trend" class="daily-trend"></div>
+      </div>
     </section>
 
     <section id="operations" class="page">
@@ -107,12 +120,12 @@
       <label>用户名<input id="login-username" autocomplete="username" value="operator" required></label>
       <label>密码<input id="login-password" type="password" autocomplete="current-password" value="Operator!2026" required></label>
       <button class="primary" type="submit">登录</button>
-      <p class="demo-accounts">演示账号：operator / Operator!2026<br>质量复核：quality / Quality!2026</p>
+      <p class="demo-accounts">本地操作账号：operator / Operator!2026<br>本地质量账号：quality / Quality!2026</p>
       <p id="login-error" class="form-error" role="alert"></p>
     </form>
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v=1.1.0" defer></script>
 </body>
 </html>

@@ -39,7 +39,7 @@ def make_label(filename: str, *, values: dict[str, str], qr_payload: dict[str, s
 
     draw.rounded_rectangle((735, 170, 1000, 435), radius=12, outline="#12211d", width=3)
     draw.text((795, 270), "QR PAYLOAD", fill="#12211d", font=font)
-    draw.text((80, 520), "DEMO LABEL · metadata-backed OCR fixture", fill="#65736e", font=font)
+    draw.text((80, 520), "SYNTHETIC LABEL · metadata-backed OCR fixture", fill="#65736e", font=font)
 
     embedded = {
         "fields": {key: field(value, confidence) for key, value in values.items()},
@@ -85,7 +85,7 @@ def main() -> None:
             "serial_number": "A100-20269999",
         },
     )
-    print(f"Generated demo labels in {OUTPUT_DIR}")
+    print(f"Generated synthetic labels in {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":

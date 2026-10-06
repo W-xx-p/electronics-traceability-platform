@@ -7,6 +7,13 @@ let signedInUser = null;
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
+const formatNumber = (value) => new Intl.NumberFormat('zh-CN').format(Number(value || 0));
+const reasonNames = {
+  low_field_confidence: '字段置信度不足', low_confidence: '整体置信度不足',
+  poor_image_quality: '图像质量异常', duplicate_serial: '序列号重复',
+  invalid_format: '字段格式异常', order_model_mismatch: '订单型号不匹配',
+  qr_ocr_conflict: '二维码与 OCR 冲突'
+};
 
 function toast(message) {
   const node = $('#toast');
@@ -171,16 +178,29 @@ $('#trace-form').addEventListener('submit', async (event) => {
 async function loadDashboard() {
   try {
     const data = await api('/api/v1/dashboard/summary');
-    const cards = [['检测总数', data.total], ['自动放行率', `${(data.pass_rate * 100).toFixed(1)}%`], ['待复核率', `${(data.review_rate * 100).toFixed(1)}%`], ['拒绝率', `${(data.reject_rate * 100).toFixed(1)}%`], ['平均置信度', `${(data.avg_confidence * 100).toFixed(1)}%`], ['P95 耗时', `${data.latency_ms.p95} ms`]];
-    $('#metric-cards').innerHTML = cards.map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${escapeHTML(value)}</strong></div>`).join('');
+    const cards = [
+      ['检测总数', formatNumber(data.total), '累计生产检测', 'tone-total'],
+      ['自动放行率', `${(data.pass_rate * 100).toFixed(1)}%`, `${formatNumber(data.passed)} 件自动通过`, 'tone-pass'],
+      ['待复核率', `${(data.review_rate * 100).toFixed(1)}%`, `${formatNumber(data.review)} 件进入人工队列`, 'tone-review'],
+      ['拒绝率', `${(data.reject_rate * 100).toFixed(1)}%`, `${formatNumber(data.rejected)} 件规则拒绝`, 'tone-reject'],
+      ['平均置信度', `${(data.avg_confidence * 100).toFixed(1)}%`, 'OCR 全字段均值', 'tone-info'],
+      ['P95 处理耗时', `${formatNumber(data.latency_ms.p95)} ms`, `P50 ${formatNumber(data.latency_ms.p50)} ms`, 'tone-pass']
+    ];
+    $('#metric-cards').innerHTML = cards.map(([label, value, note, tone]) => `<div class="metric ${tone}"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong><small>${escapeHTML(note)}</small></div>`).join('');
     const max = Math.max(...data.top_reasons.map((item) => item.count), 1);
-    $('#reason-list').innerHTML = data.top_reasons.length ? data.top_reasons.map((item) => `<div class="reason-row"><span>${escapeHTML(item.code)}</span><div class="bar"><i style="width:${Number(item.count) / max * 100}%"></i></div><strong>${Number(item.count)}</strong></div>`).join('') : '<p class="empty-state">暂无异常数据</p>';
+    $('#reason-list').innerHTML = data.top_reasons.length ? data.top_reasons.map((item) => `<div class="reason-row"><span title="${escapeHTML(item.code)}">${escapeHTML(reasonNames[item.code] || item.code)}</span><div class="bar"><i style="width:${Number(item.count) / max * 100}%"></i></div><strong>${formatNumber(item.count)}</strong></div>`).join('') : '<p class="empty-state">暂无异常数据</p>';
+    $('#workstation-performance').innerHTML = data.by_workstation.length ? data.by_workstation.map((item) => {
+      const yieldRate = Number(item.total) ? Number(item.passed || 0) / Number(item.total) * 100 : 0;
+      return `<tr><td><strong>${escapeHTML(item.workstation)}</strong></td><td>${formatNumber(item.total)}</td><td><div class="yield"><span>${yieldRate.toFixed(1)}%</span><div class="yield-track"><i style="width:${yieldRate}%"></i></div></div></td><td>${Math.round(Number(item.avg_processing_ms || 0))} ms</td></tr>`;
+    }).join('') : '<tr><td colspan="4" class="empty-state">暂无工位数据</td></tr>';
     const trendMax = Math.max(...data.daily_trend.map((item) => item.total), 1);
     $('#daily-trend').innerHTML = data.daily_trend.length ? data.daily_trend.map((item) => `
       <div class="trend-day" title="${Number(item.total)} 次检测，${Number(item.rejected || 0)} 次拒绝">
-        <div class="trend-bar"><i style="height:${Number(item.passed || 0) / trendMax * 100}%"></i><i class="reject" style="height:${Number(item.rejected || 0) / trendMax * 100}%"></i></div>
+        <span class="trend-total">${formatNumber(item.total)}</span>
+        <div class="trend-bar"><div class="trend-stack" style="height:${Number(item.total) / trendMax * 100}%"><i class="pass" style="flex:${Number(item.passed || 0)}"></i><i class="review" style="flex:${Number(item.review || 0)}"></i><i class="reject" style="flex:${Number(item.rejected || 0)}"></i></div></div>
         <span>${escapeHTML(item.day.slice(5))}</span>
       </div>`).join('') : '<p class="empty-state">暂无趋势数据</p>';
+    $('#dashboard-updated').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   } catch (error) { toast(error.message); }
 }
 
@@ -193,12 +213,13 @@ async function loadRecords() {
   query.set('limit', '100');
   try {
     const data = await api(`/api/v1/inspections?${query}`);
+    $('#record-count').textContent = `共 ${formatNumber(data.total)} 条记录 · 当前显示 ${formatNumber(data.items.length)} 条`;
     $('#record-rows').innerHTML = data.items.length ? data.items.map((item) => `<tr>
       <td>${escapeHTML(new Date(item.created_at).toLocaleString())}</td><td>${escapeHTML(item.serial_number || '—')}</td>
       <td>${escapeHTML(item.order_number)}</td><td>${escapeHTML(item.workstation_code || '未指定')}</td>
       <td><span class="status ${escapeHTML(item.status)}">${escapeHTML(item.status)}</span></td>
       <td>${(Number(item.overall_confidence) * 100).toFixed(1)}%</td><td>${Number(item.processing_ms)} ms</td>
-      <td><button class="mini-button" onclick="viewEvidence('${escapeHTML(item.id)}')">查看</button></td>
+      <td>${item.has_evidence ? `<button class="mini-button" onclick="viewEvidence('${escapeHTML(item.id)}')">查看</button>` : '<span class="evidence-unavailable">模拟数据</span>'}</td>
     </tr>`).join('') : '<tr><td colspan="8">没有匹配记录</td></tr>';
   } catch (error) { toast(error.message); }
 }

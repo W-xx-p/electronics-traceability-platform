@@ -116,8 +116,8 @@ electronics-traceability-platform/
 
 - Docker Compose 部署；
 - 整理测试集并计算指标；
-- 录制演示视频；
-- 完善 README、架构图、API 文档和简历描述。
+- 录制操作与验收视频；
+- 完善 README、架构图、API 文档和验收记录。
 
 ## 5. 必须测试的场景
 
@@ -132,7 +132,7 @@ electronics-traceability-platform/
 - 同一请求重试不会生成重复检测记录；
 - 审核修改保留完整审计记录。
 
-## 6. 演示数据策略
+## 6. 合成数据策略
 
 为避免依赖企业数据，使用脚本生成合成标签：
 

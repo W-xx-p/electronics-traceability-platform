@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 from PIL import Image, PngImagePlugin
 
 from backend.app.config import Settings
+from backend.app.db import Database
 from backend.app.main import create_app
+from backend.app.repository import Repository
 from scripts.backup_database import backup
 
 
@@ -290,6 +292,39 @@ def test_production_configuration_rejects_demo_seed(tmp_path):
         assert False, "production mode should reject demo seed"
     except RuntimeError as exc:
         assert "SEED_DEMO=false" in str(exc)
+
+    demo_data_settings = Settings(
+        base_dir=tmp_path,
+        database_path=tmp_path / "demo-data-prod.db",
+        upload_dir=tmp_path / "uploads",
+        static_dir=tmp_path / "no-static",
+        environment="production",
+        seed_demo=False,
+        demo_inspection_count=100,
+    )
+    try:
+        create_app(demo_data_settings)
+        assert False, "production mode should reject demo data"
+    except RuntimeError as exc:
+        assert "DEMO_INSPECTION_COUNT=0" in str(exc)
+
+
+def test_demo_dataset_is_realistic_and_idempotent(tmp_path):
+    database = Database(tmp_path / "demo-data.db")
+    database.initialize()
+    repository = Repository(database)
+    repository.seed_demo()
+
+    assert repository.seed_demo_inspections(600) == 600
+    assert repository.seed_demo_inspections(600) == 0
+    dashboard = repository.dashboard()
+    assert dashboard["total"] == 600
+    assert len(dashboard["daily_trend"]) == 14
+    assert len(dashboard["by_workstation"]) == 4
+    assert dashboard["pass_rate"] > 0.95
+    assert dashboard["review"] > 0
+    assert dashboard["rejected"] > 0
+    assert repository.list_inspections(limit=1)["items"][0]["has_evidence"] == 0
 
 
 def test_production_hides_docs_and_protects_metrics(tmp_path):

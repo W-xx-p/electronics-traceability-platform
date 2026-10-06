@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import hashlib
+import random
 import secrets
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .db import Database, decode_json_columns, utc_now
@@ -55,6 +57,141 @@ class Repository:
             self.create_order("PO-2026-001", model_id, "B260001", 500)
         if not self.db.fetch_one("SELECT id FROM workstations LIMIT 1"):
             self.create_workstation("LINE-A-01", "A 线视觉质检工位", "一厂 SMT A 线")
+
+    def seed_demo_inspections(self, target_count: int) -> int:
+        """Seed deterministic synthetic history for local validation environments."""
+        target_count = min(max(int(target_count), 0), 50_000)
+        now = datetime.now(UTC)
+
+        def demo_timestamp(index: int) -> datetime:
+            day_offset = index % 14
+            target_date = now.date() - timedelta(days=13 - day_offset)
+            hour_range = max(now.hour + 1, 1) if day_offset == 13 else 24
+            return datetime(
+                target_date.year, target_date.month, target_date.day,
+                (index * 7) % hour_range, (index * 13) % 60, (index * 17) % 60,
+                tzinfo=UTC,
+            )
+
+        count_row = self.db.fetch_one("SELECT COUNT(*) AS count FROM inspections") or {}
+        existing = int(count_row.get("count") or 0)
+        if existing >= target_count:
+            synthetic = self.db.fetch_all(
+                """SELECT id, serial_number FROM inspections
+                   WHERE image_path = '' AND image_sha256 = '' AND serial_number LIKE 'A100-26%'"""
+            )
+            updates: list[tuple[str, str]] = []
+            for row in synthetic:
+                try:
+                    index = int(row["serial_number"].split("-", 1)[1]) - 26_010_000
+                except (AttributeError, ValueError):
+                    continue
+                if index >= 0:
+                    updates.append((demo_timestamp(index).isoformat(), row["id"]))
+            if updates:
+                with self.db.connect() as conn:
+                    conn.executemany("UPDATE inspections SET created_at = ? WHERE id = ?", updates)
+            return 0
+
+        model = self.db.fetch_one("SELECT id FROM product_models ORDER BY id LIMIT 1")
+        if not model:
+            self.seed_demo()
+            model = self.db.fetch_one("SELECT id FROM product_models ORDER BY id LIMIT 1")
+        if not model:
+            raise RuntimeError("无法创建本地验证产品型号")
+        model_id = int(model["id"])
+
+        for number, batch in (("PO-2026-002", "B260002"), ("PO-2026-003", "B260003")):
+            if not self.db.fetch_one("SELECT id FROM production_orders WHERE order_number = ?", (number,)):
+                self.create_order(number, model_id, batch, 6000)
+        for code, name, location in (
+            ("LINE-A-02", "A 线终检工位", "一厂 SMT A 线"),
+            ("LINE-B-01", "B 线视觉质检工位", "一厂组装 B 线"),
+            ("LINE-B-02", "B 线终检工位", "一厂组装 B 线"),
+        ):
+            if not self.db.fetch_one("SELECT id FROM workstations WHERE code = ?", (code,)):
+                self.create_workstation(code, name, location)
+
+        orders = self.db.fetch_all(
+            "SELECT id, batch_number FROM production_orders WHERE status = 'active' ORDER BY id"
+        )
+        stations = self.db.fetch_all("SELECT id FROM workstations WHERE active = 1 ORDER BY id")
+        rng = random.Random(20261006)
+        rows: list[tuple[Any, ...]] = []
+        review_rows: list[tuple[str, str]] = []
+        reason_catalog = {
+            "review": [
+                ("low_confidence", "整体识别置信度低于自动放行阈值"),
+                ("poor_image_quality", "图像存在轻微反光或清晰度不足"),
+            ],
+            "reject": [
+                ("duplicate_serial", "序列号已存在"),
+                ("order_model_mismatch", "识别型号与生产订单不一致"),
+                ("qr_ocr_conflict", "二维码内容与 OCR 结果不一致"),
+                ("invalid_format", "关键字段格式不符合产品规则"),
+            ],
+        }
+
+        for index in range(existing, target_count):
+            roll = (index * 73 + 19) % 1000
+            status = "pass" if roll < 967 else "review" if roll < 986 else "reject"
+            created = demo_timestamp(index)
+            order = orders[index % len(orders)]
+            station = stations[index % len(stations)]
+            serial = f"A100-{26_010_000 + index:08d}"
+            if status == "pass":
+                confidence = round(0.955 + rng.random() * 0.04, 4)
+                reasons = [{"code": "all_checks_passed", "message": "所有质量规则均通过", "severity": "info"}]
+            else:
+                confidence = round((0.72 if status == "review" else 0.86) + rng.random() * 0.09, 4)
+                code, message = reason_catalog[status][index % len(reason_catalog[status])]
+                reasons = [{
+                    "code": code,
+                    "message": message,
+                    "severity": "warning" if status == "review" else "error",
+                }]
+            fields = {
+                "serial_number": {"value": serial, "confidence": confidence},
+                "product_model": {"value": "ECU-A100", "confidence": min(confidence + 0.01, 0.999)},
+                "batch_number": {"value": order["batch_number"], "confidence": min(confidence + 0.015, 0.999)},
+                "manufacturing_date": {"value": created.date().isoformat(), "confidence": confidence},
+                "rohs": {"value": "ROHS", "confidence": min(confidence + 0.02, 0.999)},
+            }
+            inspection_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"electrotrace-demo-{index}"))
+            rows.append((
+                inspection_id, order["id"], model_id, serial, order["batch_number"], "ECU-A100",
+                status, confidence, "", json.dumps(fields, ensure_ascii=False),
+                json.dumps({
+                    "serial_number": serial,
+                    "product_model": "ECU-A100",
+                    "batch_number": order["batch_number"],
+                }, ensure_ascii=False),
+                json.dumps(reasons, ensure_ascii=False),
+                json.dumps({"score": round(0.82 + rng.random() * 0.17, 4), "issues": []}, ensure_ascii=False),
+                None, created.isoformat(), station["id"], 72 + (index * 37) % 210, "",
+            ))
+            if status == "review":
+                review_rows.append((inspection_id, created.isoformat()))
+
+        with self.db.connect() as conn:
+            conn.executemany(
+                """INSERT INTO inspections(
+                       id, order_id, product_model_id, serial_number, batch_number, recognized_model,
+                       status, overall_confidence, image_path, fields_json, qr_payload_json,
+                       reasons_json, quality_json, idempotency_key, created_at, workstation_id,
+                       processing_ms, image_sha256
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                rows,
+            )
+            conn.executemany(
+                "INSERT INTO review_tasks(inspection_id, status, created_at) VALUES (?, 'open', ?)",
+                review_rows,
+            )
+        self.db.audit(
+            "demo_dataset", "synthetic", "seeded",
+            {"records_added": len(rows), "target_count": target_count},
+        )
+        return len(rows)
 
     def create_product_model(self, code: str, name: str, rules: dict[str, Any]) -> int:
         model_id = self.db.execute(
@@ -372,6 +509,7 @@ class Repository:
         rows = self.db.fetch_all(
             f"""SELECT i.id, i.serial_number, i.recognized_model, i.batch_number, i.status,
                        i.overall_confidence, i.processing_ms, i.created_at, o.order_number,
+                       CASE WHEN i.image_sha256 != '' THEN 1 ELSE 0 END AS has_evidence,
                        w.code AS workstation_code
                 FROM inspections i JOIN production_orders o ON o.id = i.order_id
                 LEFT JOIN workstations w ON w.id = i.workstation_id

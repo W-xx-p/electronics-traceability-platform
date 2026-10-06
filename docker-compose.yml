@@ -6,6 +6,7 @@ services:
     environment:
       ELECTROTRACE_OCR_PROVIDER: demo
       ELECTROTRACE_SEED_DEMO: "true"
+      ELECTROTRACE_DEMO_INSPECTION_COUNT: "12486"
       ELECTROTRACE_DB: /app/data/electrotrace.db
       ELECTROTRACE_UPLOAD_DIR: /app/data/uploads
       ELECTROTRACE_AUTH_REQUIRED: "true"

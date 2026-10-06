@@ -38,7 +38,7 @@ class DemoMetadataOCRProvider:
 
         if not payload:
             raise ValueError(
-                "演示 OCR 只能读取项目生成的样例标签；真实图片请配置 ELECTROTRACE_OCR_PROVIDER=paddle"
+                "合成数据 OCR 只能读取项目生成的验证标签；真实图片请配置 ELECTROTRACE_OCR_PROVIDER=paddle"
             )
 
         data = json.loads(payload)

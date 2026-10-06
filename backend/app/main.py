@@ -34,6 +34,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or Settings.from_env()
     if app_settings.environment == "production" and app_settings.seed_demo:
         raise RuntimeError("生产环境必须设置 ELECTROTRACE_SEED_DEMO=false")
+    if app_settings.environment == "production" and app_settings.demo_inspection_count:
+        raise RuntimeError("生产环境必须设置 ELECTROTRACE_DEMO_INSPECTION_COUNT=0")
     if app_settings.environment == "production" and len(app_settings.audit_hmac_key) < 32:
         raise RuntimeError("生产环境必须设置至少 32 位的 ELECTROTRACE_AUDIT_HMAC_KEY")
     if app_settings.environment == "production" and len(app_settings.metrics_token) < 24:
@@ -51,6 +53,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if app_settings.seed_demo:
             repository.seed_demo()
+            if app_settings.demo_inspection_count:
+                repository.seed_demo_inspections(app_settings.demo_inspection_count)
             auth_service.seed_demo_users(app_settings.demo_admin_password)
         elif not auth_service.has_users():
             if not app_settings.bootstrap_admin_username or len(app_settings.bootstrap_admin_password) < 12:
